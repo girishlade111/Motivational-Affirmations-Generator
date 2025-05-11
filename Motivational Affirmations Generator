@@ -1,0 +1,170 @@
+import { useState, useEffect } from 'react'
+import { Button } from "/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "/components/ui/card"
+import { Clock, Share2, Bell } from "lucide-react"
+import { Input } from "/components/ui/input"
+import { Label } from "/components/ui/label"
+
+// Sample affirmations data
+const affirmations = [
+  "I am capable of achieving great things.",
+  "Every challenge is an opportunity to grow.",
+  "I choose to focus on what I can control.",
+  "My potential is limitless.",
+  "I am worthy of love and happiness.",
+  "Today, I will make progress toward my goals.",
+  "I trust in my ability to figure things out.",
+  "I am surrounded by abundance.",
+  "My mind is full of positive thoughts.",
+  "I attract success and prosperity.",
+]
+
+export default function MotivationalAffirmations() {
+  const [currentAffirmation, setCurrentAffirmation] = useState("")
+  const [notificationTime, setNotificationTime] = useState("")
+  const [notificationPermission, setNotificationPermission] = useState(false)
+  const [isShared, setIsShared] = useState(false)
+
+  // Load a random affirmation on component mount
+  useEffect(() => {
+    getRandomAffirmation()
+    checkNotificationPermission()
+  }, [])
+
+  const getRandomAffirmation = () => {
+    const randomIndex = Math.floor(Math.random() * affirmations.length)
+    setCurrentAffirmation(affirmations[randomIndex])
+    setIsShared(false)
+  }
+
+  const checkNotificationPermission = () => {
+    if ("Notification" in window) {
+      if (Notification.permission === "granted") {
+        setNotificationPermission(true)
+      }
+    }
+  }
+
+  const requestNotificationPermission = () => {
+    if ("Notification" in window) {
+      Notification.requestPermission().then(permission => {
+        setNotificationPermission(permission === "granted")
+      })
+    }
+  }
+
+  const scheduleNotification = () => {
+    if (!notificationTime) return
+    
+    if (!notificationPermission) {
+      requestNotificationPermission()
+      return
+    }
+
+    const [hours, minutes] = notificationTime.split(':').map(Number)
+    const now = new Date()
+    const notificationDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      hours,
+      minutes
+    )
+
+    // If the time has already passed today, schedule for tomorrow
+    if (notificationDate < now) {
+      notificationDate.setDate(notificationDate.getDate() + 1)
+    }
+
+    const timeUntilNotification = notificationDate.getTime() - now.getTime()
+
+    setTimeout(() => {
+      if (Notification.permission === "granted") {
+        new Notification("Daily Affirmation", {
+          body: currentAffirmation || "You are amazing!",
+          icon: "/favicon.ico"
+        })
+      }
+    }, timeUntilNotification)
+
+    alert(`Notification scheduled for ${notificationTime}`)
+  }
+
+  const shareAffirmation = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Motivational Affirmation',
+        text: currentAffirmation,
+      })
+      .then(() => setIsShared(true))
+      .catch(err => console.log('Error sharing:', err))
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      navigator.clipboard.writeText(currentAffirmation)
+      setIsShared(true)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
+      <div className="max-w-md mx-auto">
+        <Card className="bg-white shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              Daily Affirmations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="bg-blue-100 p-6 rounded-lg text-center">
+              <p className="text-xl font-medium text-blue-800">
+                {currentAffirmation || "Click the button below for an affirmation"}
+              </p>
+            </div>
+
+            <div className="flex justify-center space-x-4">
+              <Button onClick={getRandomAffirmation} className="bg-blue-600 hover:bg-blue-700">
+                <Clock className="mr-2 h-4 w-4" />
+                New Affirmation
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={shareAffirmation}
+                disabled={!currentAffirmation}
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                {isShared ? "Shared!" : "Share"}
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notification-time">Daily Reminder</Label>
+              <div className="flex space-x-2">
+                <Input 
+                  type="time" 
+                  id="notification-time" 
+                  value={notificationTime}
+                  onChange={(e) => setNotificationTime(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  variant="secondary" 
+                  onClick={scheduleNotification}
+                  disabled={!notificationTime}
+                >
+                  <Bell className="mr-2 h-4 w-4" />
+                  Set
+                </Button>
+              </div>
+              {!notificationPermission && (
+                <p className="text-sm text-gray-500">
+                  You'll need to allow notifications first
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
